@@ -7,10 +7,30 @@
 <link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
 <link href="assets/css/style.css" rel="stylesheet"/>
+<style id="aurelia-language-pending-style">
+html.language-pending body { visibility: hidden; }
+</style>
+<script>
+(function () {
+  try {
+    var manual = localStorage.getItem('aurelia-language-manual-v4');
+    var geo = localStorage.getItem('aurelia-language-geo-v2');
+    if (manual === 'el' || manual === 'en') {
+      document.documentElement.lang = manual;
+    } else if (geo === 'el' || geo === 'en') {
+      document.documentElement.lang = geo;
+    } else {
+      document.documentElement.classList.add('language-pending');
+    }
+  } catch (e) {
+    document.documentElement.classList.add('language-pending');
+  }
+})();
+</script>
 </head>
 <body>
 <header class="site-header"><a class="brand" data-i18n-aria="brandHome" href="index.html"><span class="brand-mark">A</span><span class="brand-name">AURELIA</span></a><div class="header-actions"><button class="language-switch" data-i18n-aria="switchLanguage" type="button"><span>ENGLISH</span><span>ΕΛΛΗΝΙΚΑ</span></button><button aria-controls="site-menu" aria-expanded="false" class="menu-toggle" type="button"><span></span><span></span><span></span><em data-i18n="menu">MENU</em></button></div></header>
-<nav aria-hidden="true" class="site-menu" id="site-menu"><div class="menu-inner"><p class="menu-eyebrow" data-i18n="menuEyebrow">Explore Aurelia</p><a class="menu-link" href="index.html"><span>01</span>Home</a><a class="menu-link" href="history.html"><span>02</span>History</a><a class="menu-link" href="about.html"><span>03</span>About</a><a class="menu-link active" href="gallery.html"><span>04</span>Gallery</a></div></nav>
+<nav aria-hidden="true" class="site-menu" id="site-menu"><div class="menu-inner"><p class="menu-eyebrow" data-i18n="menuEyebrow">Explore Aurelia</p><a class="menu-link" href="index.html"><span>01</span><span data-i18n="home">Home</span></a><a class="menu-link" href="history.html"><span>02</span><span data-i18n="history">History</span></a><a class="menu-link" href="about.html"><span>03</span><span data-i18n="about">About</span></a><a class="menu-link active" href="gallery.html"><span>04</span><span data-i18n="gallery">Gallery</span></a></div></nav>
 <main>
 <section class="page-hero section-dark"><div class="container reveal"><p class="eyebrow" data-i18n="galleryEyebrow">SELECTED WORK</p><h1 data-i18n="galleryTitle">The<br/><i>gallery.</i></h1><p class="hero-copy" data-i18n="galleryCopy">A visual collection of moments, spaces and details.</p></div></section>
 <section class="gallery-section section-light"><div class="container"><div class="gallery-grid">
@@ -21,4 +41,4 @@
 </div></div></section>
 </main>
 <footer class="site-footer"><div class="footer-top"><div><span class="brand-mark">A</span><p data-i18n="quietlyExtraordinary">Quietly extraordinary.</p></div><div class="footer-nav"><a data-i18n="home" href="index.html">Home</a><a data-i18n="history" href="history.html">History</a><a data-i18n="about" href="about.html">About</a><a data-i18n="gallery" href="gallery.html">Gallery</a></div><div class="footer-meta"><p data-i18n="copyright">© 2026 Aurelia</p><p data-i18n="email">hello@example.com</p></div></div><div class="footer-bottom"><span data-i18n="languageFooter">GREEK / ENGLISH</span><span data-i18n="footerTagline">Designed for timeless digital experiences</span><span data-i18n="backTop">↑ BACK TO TOP</span></div></footer>
-<script src="assets/js/main.js?v=2"></script></body></html>
+<script src="assets/js/main.js?v=4"></script></body></html>

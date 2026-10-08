@@ -1,8 +1,34 @@
 /* Aurelia — interactions + automatic Greek/English localization */
 (() => {
-  const LANG_KEY = 'aurelia-language-v2';
-  const MANUAL_KEY = 'aurelia-language-manual-v2';
-  const GEO_ENDPOINT = 'https://ipapi.co/json/';
+  const MANUAL_KEY = 'aurelia-language-manual-v4';
+  const GEO_LANGUAGE_KEY = 'aurelia-language-geo-v2';
+  const GEO_ENDPOINTS = ['https://ipapi.co/json/', 'https://ipwho.is/'];
+
+  function readManualLanguage() {
+    try {
+      const value = localStorage.getItem(MANUAL_KEY);
+      return value === 'el' || value === 'en' ? value : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function writeManualLanguage(lang) {
+    try { localStorage.setItem(MANUAL_KEY, lang); } catch (_) {}
+  }
+
+  function readGeoLanguage() {
+    try {
+      const value = localStorage.getItem(GEO_LANGUAGE_KEY);
+      return value === 'el' || value === 'en' ? value : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function writeGeoLanguage(lang) {
+    try { localStorage.setItem(GEO_LANGUAGE_KEY, lang); } catch (_) {}
+  }
 
   const translations = {
     en: {
@@ -74,13 +100,7 @@
       const value = t[el.dataset.i18n];
       if (value !== undefined) el.innerHTML = value;
     });
-    // Translate menu links while preserving their numeric prefix.
-    document.querySelectorAll('.site-menu .menu-link').forEach(link => {
-      const file = (link.getAttribute('href') || '').split('/').pop() || 'index.html';
-      const key = ({'index.html':'home','history.html':'history','about.html':'about','gallery.html':'gallery'})[file];
-      const number = link.querySelector('span');
-      if (key && number) link.innerHTML = `<span>${number.textContent}</span>${t[key]}`;
-    });
+    // Menu labels use data-i18n elements and keep their HTML structure intact.
     document.querySelectorAll('[data-i18n-alt]').forEach(img => {
       const alt = img.dataset.i18nAlt;
       const altMap = {
@@ -105,42 +125,65 @@
   }
 
   function saveAndApply(lang) {
-    localStorage.setItem(MANUAL_KEY, lang);
-    localStorage.setItem(LANG_KEY, lang);
+    writeManualLanguage(lang);
     applyLanguage(lang);
   }
 
   async function detectCountryLanguage() {
-    // Primary Geo-IP service. The returned country code is based on the visitor's public IP.
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 5000);
-      const response = await fetch(GEO_ENDPOINT, {
-        headers: {Accept:'application/json'},
-        cache: 'no-store',
-        signal: controller.signal
-      });
-      clearTimeout(timer);
-      if (!response.ok) throw new Error('Geo-IP request failed');
-      const data = await response.json();
-      const country = String(data.country_code || data.country || '').toUpperCase();
-      if (country === 'CY' || country === 'GR') return 'el';
-      if (country) return 'en';
-      throw new Error('No country returned');
-    } catch (error) {
-      // Fallback to browser language if the Geo-IP service is unavailable.
-      return navigator.language && navigator.language.toLowerCase().startsWith('el') ? 'el' : 'en';
+    // Try more than one Geo-IP provider so a temporary provider/rate-limit failure
+    // does not incorrectly send a Cyprus visitor to English.
+    for (const endpoint of GEO_ENDPOINTS) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 3500);
+        const response = await fetch(endpoint, {
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+          signal: controller.signal
+        });
+        clearTimeout(timer);
+        if (!response.ok) throw new Error('Geo-IP request failed');
+        const data = await response.json();
+        const country = String(
+          data.country_code || data.countryCode || data.country || ''
+        ).trim().toUpperCase();
+        if (!country) throw new Error('No country returned');
+        const lang = (country === 'CY' || country === 'GR') ? 'el' : 'en';
+        writeGeoLanguage(lang);
+        return lang;
+      } catch (_) {
+        // Try the next provider.
+      }
     }
+
+    // Only use browser language if all Geo-IP providers fail.
+    return navigator.language && navigator.language.toLowerCase().startsWith('el') ? 'el' : 'en';
   }
 
-  // Existing menu interaction.
+  // Menu interaction.
   const menuToggle = document.querySelector('.menu-toggle');
   const siteMenu = document.querySelector('.site-menu');
+
+  function setMenu(open) {
+    if (!menuToggle || !siteMenu) return;
+    menuToggle.classList.toggle('open', open);
+    siteMenu.classList.toggle('open', open);
+    document.body.classList.toggle('menu-open', open);
+    menuToggle.setAttribute('aria-expanded', String(open));
+    siteMenu.setAttribute('aria-hidden', String(!open));
+  }
+
   if (menuToggle && siteMenu) {
     menuToggle.addEventListener('click', () => {
-      const open = document.body.classList.toggle('menu-open');
-      menuToggle.setAttribute('aria-expanded', String(open));
-      siteMenu.setAttribute('aria-hidden', String(!open));
+      setMenu(!siteMenu.classList.contains('open'));
+    });
+
+    siteMenu.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', () => setMenu(false));
+    });
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') setMenu(false);
     });
   }
 
@@ -189,14 +232,23 @@
 
   // Language initialization:
   // 1) A deliberate manual choice wins.
-  // 2) Otherwise determine country from public IP: CY/GR => Greek, everything else => English.
-  // 3) If Geo-IP is unavailable, use the browser language as fallback.
-  const manual = localStorage.getItem(MANUAL_KEY);
-  if (manual === 'el' || manual === 'en') {
+  // 2) Otherwise use the previously detected country language immediately.
+  // 3) On a first visit, resolve Geo-IP before revealing the page so English never flashes before Greek.
+  // 4) The detected result is cached for all subsequent pages in this visit.
+  const manual = readManualLanguage();
+  const cachedGeo = readGeoLanguage();
+
+  if (manual) {
     applyLanguage(manual);
+    document.documentElement.classList.remove('language-pending');
+  } else if (cachedGeo) {
+    applyLanguage(cachedGeo);
+    document.documentElement.classList.remove('language-pending');
   } else {
-    // English is only the temporary loading state. Geo-IP can replace it with Greek.
-    applyLanguage('en');
-    detectCountryLanguage().then(lang => applyLanguage(lang));
+    document.documentElement.classList.add('language-pending');
+    detectCountryLanguage().then(lang => {
+      applyLanguage(lang);
+      document.documentElement.classList.remove('language-pending');
+    });
   }
 })();
